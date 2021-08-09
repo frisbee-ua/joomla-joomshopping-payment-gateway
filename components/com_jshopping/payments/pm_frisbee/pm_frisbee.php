@@ -19,7 +19,7 @@ class pm_frisbee extends PaymentRoot
 
     const ORDER_SEPARATOR = ":";
 
-    const URL = 'https://api.fondy.eu/api/checkout/redirect/';
+    const URL = 'https://api.fondy.eu/api/checkout/url/';
 
     public function loadLanguageFile()
     {
