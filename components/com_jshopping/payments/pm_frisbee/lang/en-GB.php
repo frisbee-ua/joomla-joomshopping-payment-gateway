@@ -10,7 +10,6 @@ define ('ADMIN_CFG_FRISBEE_MERCHANT_ID', 'Merchant ID');
 define ('ADMIN_CFG_FRISBEE_MERCHANT_ID_DESCRIPTION', "Unique id of the store in Frisbee system.");
 define ('ADMIN_CFG_FRISBEE_SECRET_KEY', 'Secret key');
 define ('ADMIN_CFG_FRISBEE_SECRET_KEY_DESCRIPTION', 'Custom character set is used to sign messages are forwarded.');
-define ('ADMIN_CFG_FRISBEE_PAYMODE', 'Payment method');
 define ('ADMIN_CFG_FRISBEE_CURRENCY_DESCRIPTION', 'Merchant currency');
 define ('ADMIN_CFG_FRISBEE_CURRENCY', 'Currency');
 

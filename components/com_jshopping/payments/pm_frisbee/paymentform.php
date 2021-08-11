@@ -1,7 +1,7 @@
 <?php
 /*
 * @version      1.0.0
-* @author       DM
+* @author       Frisbee
 * @package      Frisbee
 * @license http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
 */
