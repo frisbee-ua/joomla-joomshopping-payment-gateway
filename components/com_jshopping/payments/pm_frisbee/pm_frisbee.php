@@ -117,16 +117,18 @@ class pm_frisbee extends PaymentRoot
 
         $frisbee_args['signature'] = $this->getSignature($frisbee_args, $secretKey);
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-type: application/json']);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['request' => $frisbee_args]));
-        $result = curl_exec($ch);
+        $opts = [
+            'http' => [
+                'method' => 'POST',
+                'header' => 'Content-type: application/json',
+                'content' => json_encode(['request' => $frisbee_args])
+            ]
+        ];
+        $context = stream_context_create($opts);
+        $content = file_get_contents($url, false, $context);
+        $result = $this->decodeJson($content);
 
-        $result = json_decode($result);
-        if ($result->response->response_status == 'failure') {
+        if ($result->response->response_status != 'success') {
             echo $result->response->error_message;
             exit;
         }
@@ -205,14 +207,22 @@ class pm_frisbee extends PaymentRoot
 
     protected function getSignature($data, $password, $encoded = true)
     {
+        if (isset($data['products'])) {
+            unset($data['products']);
+        }
+
         $data = array_filter($data, function ($var) {
             return $var !== '' && $var !== null;
         });
         ksort($data);
 
         $str = $password;
-        foreach ($data as $k => $v) {
-            $str .= self::SIGNATURE_SEPARATOR.$v;
+        foreach ($data as $value) {
+            if (is_array($value)) {
+                $str .= self::SIGNATURE_SEPARATOR . str_replace('"', "'", json_encode($value, JSON_HEX_APOS));
+            } else {
+                $str .= self::SIGNATURE_SEPARATOR.$value;
+            }
         }
 
         if ($encoded) {
@@ -230,7 +240,7 @@ class pm_frisbee extends PaymentRoot
      */
     protected function isPaymentValid($response, $pmconfig, $order)
     {
-        list($orderId,) = explode(self::ORDER_SEPARATOR, $response['order_id']);
+        list($orderId, $time) = explode(self::ORDER_SEPARATOR, $response['order_id']);
         if ($orderId != $order->order_id) {
             return array(0, FRISBEE_UNKNOWN_ERROR);
         }
@@ -260,6 +270,17 @@ class pm_frisbee extends PaymentRoot
 
             return array(1, FRISBEE_ORDER_APPROVED.$response['payment_id']);
         }
+    }
+
+    protected function decodeJson($data)
+    {
+        $data = json_decode($data);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \Exception('Unable to parse string into JSON');
+        }
+
+        return $data;
     }
 
     public function getUrlParams($frisbee_config)
