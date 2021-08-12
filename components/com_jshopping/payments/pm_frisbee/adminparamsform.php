@@ -38,7 +38,14 @@ defined('_JEXEC') or die();
                     <?=ADMIN_CFG_FRISBEE_CURRENCY?>:
                 </td>
                 <td>
-                    <input type="text" name="pm_params[frisbee_cur]" class="inputbox" value="<?=$params['frisbee_cur']?>">
+                    <select name="pm_params[frisbee_cur]" class="inputbox">
+                        <?php
+                        $currencies = array('UAH', 'EUR', 'USD', 'GBP', 'RUB');
+                        foreach ($currencies as $currency) {
+                            echo "<option value=\"$currency\"" . ($currency == $params['frisbee_cur'] ? ' selected' : '') . ">$currency</option>";
+                        }
+                        ?>
+                    </select>
                 </td>
                 <td>
                     <?=JHtml::tooltip(ADMIN_CFG_FRISBEE_CURRENCY_DESCRIPTION)?>

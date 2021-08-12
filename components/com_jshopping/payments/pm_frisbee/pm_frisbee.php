@@ -61,9 +61,10 @@ class pm_frisbee extends PaymentRoot
 
     public function showEndForm($pmconfigs, $order)
     {
+        $lang = JFactory::getLanguage()->getTag();
+
         $this->loadLanguageFile();
 
-        $lang = JFactory::getLanguage()->getTag();
         switch ($lang) {
             case 'en_EN':
                 $lang = 'en';
@@ -110,6 +111,10 @@ class pm_frisbee extends PaymentRoot
             'sender_email' => $order->email,
             'payment_systems' => 'frisbee',
         ];
+
+        $this->setProductsParameter($order, $frisbee_args);
+        $this->setReservationDataParameter($order, $frisbee_args);
+
         $frisbee_args['signature'] = $this->getSignature($frisbee_args, $secretKey);
 
         $ch = curl_init();
@@ -138,6 +143,43 @@ class pm_frisbee extends PaymentRoot
         $paymentInfo = $this->isPaymentValid($data, $pmconfig, $order);
 
         return $paymentInfo;
+    }
+
+    protected function setProductsParameter($order, &$parameters)
+    {
+        $parameters['products'] = [];
+
+        foreach ($order->getAllItems() as $key => $item) {
+            $parameters['products'][] = [
+                'id' => $key+1,
+                'name' => $item->product_name,
+                'price' => number_format(floatval($item->product_item_price), 2),
+                'total_amount' => number_format(floatval($item->product_quantity * $item->product_item_price), 2),
+                'quantity' => number_format(floatval($item->product_quantity), 2),
+            ];
+        }
+    }
+
+    protected function setReservationDataParameter($order, &$parameters)
+    {
+        $db = JFactory::getDBO();
+
+        $query = "SELECT country_id,country_code_2 FROM `#__jshopping_countries` WHERE country_id=" . $order->country;
+        $db->setQuery($query);
+        $countryObject = $db->loadObject();
+
+        $reservationData = [
+            'phonemobile' => $order->mobil_phone,
+            'customer_address' => $order->street,
+            'customer_country' => $countryObject->country_code_2,
+            'customer_state' => ($order->state == '-- Select --' ? '' : $order->state),
+            'customer_name' => $order->f_name . ' ' . $order->l_name,
+            'customer_city' => $order->city,
+            'customer_zip' => $order->zip,
+            'account' => $order->user_id,
+        ];
+
+        $parameters['reservation_data'] = base64_encode(json_encode($reservationData));
     }
 
     /**
