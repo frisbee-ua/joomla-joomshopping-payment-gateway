@@ -8,7 +8,7 @@
 
 ## The module installation
 
-1. [Download frisbee-payment-gateway.zip](https://github.com/frisbee-ua/joomshopping-payment-module/blob/master/frisbee-payment-gateway.zip?raw=true)
+1. [Download frisbee-payment-gateway.zip](https://github.com/frisbee-ua/joomla-joomshopping-payment-gateway/blob/master/frisbee-payment-gateway.zip?raw=true)
 2. Go to Joomla's administration panel
 3. Go to extension manager for JoomShopping
 4. Install the module package
