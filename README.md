@@ -3,7 +3,6 @@
 ## System requirements
 
 * PHP 5.6+
-* [cURL extension](http://php.net/manual/en/book.curl.php)
 * [Joomla](http://www.joomla.org/download.html) 2.5+
 * [JoomShopping](http://joomshopping.pro/download/component.html) 3.2+
 
