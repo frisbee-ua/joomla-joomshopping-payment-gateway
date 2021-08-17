@@ -10,16 +10,7 @@ defined('_JEXEC') or die('Restricted access');
 class pm_frisbee extends PaymentRoot
 {
     const VERSION = '1.0';
-
-    const ORDER_APPROVED = 'approved';
-
-    const ORDER_REJECTED = 'rejected';
-
-    const SIGNATURE_SEPARATOR = '|';
-
-    const ORDER_SEPARATOR = ":";
-
-    const URL = 'https://api.fondy.eu/api/checkout/url/';
+    const PRECISION = 2;
 
     public function loadLanguageFile()
     {
@@ -61,6 +52,8 @@ class pm_frisbee extends PaymentRoot
 
     public function showEndForm($pmconfigs, $order)
     {
+        require_once 'includes/Frisbee.php';
+
         $lang = JFactory::getLanguage()->getTag();
 
         $this->loadLanguageFile();
@@ -71,6 +64,9 @@ class pm_frisbee extends PaymentRoot
                 break;
             case 'ru_RU':
                 $lang = 'ru';
+                break;
+            case 'uk_UA':
+                $lang = 'ua';
                 break;
             default:
                 $lang = 'en';
@@ -89,80 +85,98 @@ class pm_frisbee extends PaymentRoot
         }
         $result_url = $base_url.'&act=notify&nolang=1';
 
-        if (!empty($pmconfigs['frisbee_merchant_id']) && !empty($pmconfigs['frisbee_secret_key'])) {
-            $url = self::URL;
-            $merchantId = $pmconfigs['frisbee_merchant_id'];
-            $secretKey = $pmconfigs['frisbee_secret_key'];
-        } else {
-            $url = 'https://dev2.pay.fondy.eu/api/checkout/url/';
-            $merchantId = '1601318';
-            $secretKey = 'test';
-        }
+        $frisbeeService = new Frisbee();
+        $frisbeeService->setMerchantId($pmconfigs['frisbee_merchant_id']);
+        $frisbeeService->setSecretKey($pmconfigs['frisbee_secret_key']);
+        $frisbeeService->setRequestParameterOrderId($order_id);
+        $frisbeeService->setRequestParameterOrderDescription($this->generateOrderDescriptionParameter($order));
+        $frisbeeService->setRequestParameterAmount($this->fixOrderTotal($order));
+        $frisbeeService->setRequestParameterCurrency($cur);
+        $frisbeeService->setRequestParameterServerCallbackUrl($result_url);
+        $frisbeeService->setRequestParameterResponseUrl($success_url);
+        $frisbeeService->setRequestParameterLanguage($lang);
+        $frisbeeService->setRequestParameterSenderEmail($order->email);
+        $frisbeeService->setRequestParameterReservationData($this->generateReservationDataParameter($order));
 
-        $frisbee_args = [
-            'order_id' => $order_id.self::ORDER_SEPARATOR.time(),
-            'merchant_id' => $merchantId,
-            'order_desc' => $description,
-            'amount' => round($this->fixOrderTotal($order) * 100),
-            'currency' => $cur,
-            'server_callback_url' => $result_url,
-            'response_url' => $success_url,
-            'lang' => $lang,
-            'sender_email' => $order->email,
-            'payment_systems' => 'frisbee',
-        ];
+        $checkoutUrl = $frisbeeService->retrieveCheckoutUrl($order_id);
 
-        $this->setProductsParameter($order, $frisbee_args);
-        $this->setReservationDataParameter($order, $frisbee_args);
-
-        $frisbee_args['signature'] = $this->getSignature($frisbee_args, $secretKey);
-
-        $opts = [
-            'http' => [
-                'method' => 'POST',
-                'header' => 'Content-type: application/json',
-                'content' => json_encode(['request' => $frisbee_args])
-            ]
-        ];
-        $context = stream_context_create($opts);
-        $content = file_get_contents($url, false, $context);
-        $result = $this->decodeJson($content);
-
-        if ($result->response->response_status != 'success') {
-            echo $result->response->error_message;
+        if (!$checkoutUrl) {
+            echo $frisbeeService->getRequestResultErrorMessage();
             exit;
         }
 
         header("HTTP/1.1 301 Moved Permanently");
-        header("location: " . $result->response->checkout_url);
+        header("Location: " . $checkoutUrl);
         die();
     }
 
     public function checkTransaction($pmconfig, $order, $rescode)
     {
+        require_once 'includes/Frisbee.php';
+
         $this->loadLanguageFile();
-        $data = $this->getCallbackData();
-        $paymentInfo = $this->isPaymentValid($data, $pmconfig, $order);
 
-        return $paymentInfo;
-    }
+        try {
+            $frisbeeService = new Frisbee();
+            $data = $frisbeeService->getCallbackData();
+            $frisbeeService->setMerchantId($pmconfig['frisbee_merchant_id']);
+            $frisbeeService->setSecretKey($pmconfig['frisbee_secret_key']);
 
-    protected function setProductsParameter($order, &$parameters)
-    {
-        $parameters['products'] = [];
+            $response = $frisbeeService->handleCallbackData($data);
 
-        foreach ($order->getAllItems() as $key => $item) {
-            $parameters['products'][] = [
-                'id' => $key+1,
-                'name' => $item->product_name,
-                'price' => number_format(floatval($item->product_item_price), 2),
-                'total_amount' => number_format(floatval($item->product_quantity * $item->product_item_price), 2),
-                'quantity' => number_format(floatval($item->product_quantity), 2),
-            ];
+            if ($frisbeeService->isOrderDeclined()) {
+                $orderStatus = 4;
+            } elseif ($frisbeeService->isOrderExpired()) {
+                die();
+            } elseif ($frisbeeService->isOrderApproved()) {
+                $orderStatus = $pmconfig['transaction_end_status'];
+            } elseif ($frisbeeService->isOrderFullyReversed() || $frisbeeService->isOrderPartiallyReversed()) {
+                $orderStatus = 7;
+            }
+
+            $message = 'Frisbee ID: '.$data['order_id'].' Payment ID: '.$data['payment_id'] . ' Message: ' . $frisbeeService->getStatusMessage();
+        } catch (\Exception $exception) {
+            $orderStatus = isset($pmconfig['transaction_failed_status']) ? $pmconfig['transaction_failed_status'] : 3;
+            return array($orderStatus, $exception->getMessage());
         }
+
+        JFactory::getApplication()->enqueueMessage($message);
+
+        return array($orderStatus, $message);
     }
 
-    protected function setReservationDataParameter($order, &$parameters)
+    /**
+     * @param \jshopOrder $order
+     * @return string
+     */
+    protected function generateOrderDescriptionParameter($order)
+    {
+        $description = '';
+        foreach ($order->getAllItems() as $item) {
+            $amount = number_format($this->calculateItemTotalAmount($item), self::PRECISION);
+            $description .= "Name: $item->product_name ";
+            $description .= "Price: $item->product_item_price ";
+            $description .= "Qty: $item->product_quantity ";
+            $description .= "Amount: $amount\n";
+        }
+
+        return $description;
+    }
+
+    /**
+     * @param $item
+     * @return float
+     */
+    protected function calculateItemTotalAmount($item)
+    {
+        return floatval($item->product_quantity * $item->product_item_price);
+    }
+
+    /**
+     * @param $order
+     * @return string
+     */
+    protected function generateReservationDataParameter($order)
     {
         $db = JFactory::getDBO();
 
@@ -170,117 +184,44 @@ class pm_frisbee extends PaymentRoot
         $db->setQuery($query);
         $countryObject = $db->loadObject();
 
-        $reservationData = [
-            'phonemobile' => $order->mobil_phone,
+        $reservationData = array(
+            'phonemobile' => !empty($order->mobil_phone) ? $order->mobil_phone : $order->phone,
             'customer_address' => $order->street,
             'customer_country' => $countryObject->country_code_2,
             'customer_state' => ($order->state == '-- Select --' ? '' : $order->state),
-            'customer_name' => $order->f_name . ' ' . $order->l_name,
+            'customer_name' => $order->first_name . ' ' . $order->last_name,
             'customer_city' => $order->city,
             'customer_zip' => $order->zip,
             'account' => $order->user_id,
-        ];
+            'products' => $this->generateProductsParameter($order),
+            'cms_name' => 'Joomla',
+            'cms_version' => defined('JVERSION') ? JVERSION : '',
+            'shop_domain' => $_SERVER['SERVER_NAME'],
+            'path' => $_SERVER['REQUEST_URI']
+        );
 
-        $parameters['reservation_data'] = base64_encode(json_encode($reservationData));
+        return base64_encode(json_encode($reservationData));
     }
 
     /**
+     * @param $order
      * @return array
      */
-    protected function getCallbackData()
+    protected function generateProductsParameter($order)
     {
-        $content = file_get_contents('php://input');
+        $products = [];
 
-        if (isset($_SERVER['CONTENT_TYPE'])) {
-            switch ($_SERVER['CONTENT_TYPE']) {
-                case 'application/json':
-                    return json_decode($content, true);
-                case 'application/xml':
-                    return (array) simplexml_load_string($content, "SimpleXMLElement", LIBXML_NOCDATA);
-                default:
-                    return $_REQUEST;
-            }
+        foreach ($order->getAllItems() as $key => $item) {
+            $products[] = [
+                'id' => $key+1,
+                'name' => $item->product_name,
+                'price' => number_format(floatval($item->product_item_price), self::PRECISION),
+                'total_amount' => number_format($this->calculateItemTotalAmount($item), self::PRECISION),
+                'quantity' => number_format(floatval($item->product_quantity), self::PRECISION),
+            ];
         }
 
-        return $_REQUEST;
-    }
-
-    protected function getSignature($data, $password, $encoded = true)
-    {
-        if (isset($data['products'])) {
-            unset($data['products']);
-        }
-
-        $data = array_filter($data, function ($var) {
-            return $var !== '' && $var !== null;
-        });
-        ksort($data);
-
-        $str = $password;
-        foreach ($data as $value) {
-            if (is_array($value)) {
-                $str .= self::SIGNATURE_SEPARATOR . str_replace('"', "'", json_encode($value, JSON_HEX_APOS));
-            } else {
-                $str .= self::SIGNATURE_SEPARATOR.$value;
-            }
-        }
-
-        if ($encoded) {
-            return sha1($str);
-        } else {
-            return $str;
-        }
-    }
-
-    /**
-     * @param $response
-     * @param $pmconfig
-     * @param \jshopOrder $order
-     * @return void
-     */
-    protected function isPaymentValid($response, $pmconfig, $order)
-    {
-        list($orderId, $time) = explode(self::ORDER_SEPARATOR, $response['order_id']);
-        if ($orderId != $order->order_id) {
-            return array(0, FRISBEE_UNKNOWN_ERROR);
-        }
-
-        if ($pmconfig['frisbee_merchant_id'] != $response['merchant_id']) {
-            return array(0, FRISBEE_MERCHANT_DATA_ERROR);
-        }
-
-        $responseSignature = $response['signature'];
-        if (isset($response['response_signature_string'])) {
-            unset($response['response_signature_string']);
-        }
-        if (isset($response['signature'])) {
-            unset($response['signature']);
-        }
-
-        if ($this->getSignature($response, $pmconfig['frisbee_secret_key']) != $responseSignature) {
-            return array(0, FRISBEE_SIGNATURE_ERROR);
-        }
-
-        if ($response['order_status'] != self::ORDER_APPROVED) {
-            return array(0, FRISBEE_ORDER_DECLINED);
-        }
-
-        if ($response['order_status'] == self::ORDER_APPROVED) {
-            JFactory::getApplication()->enqueueMessage(FRISBEE_ORDER_APPROVED.$response['payment_id']);
-
-            return array(1, FRISBEE_ORDER_APPROVED.$response['payment_id']);
-        }
-    }
-
-    protected function decodeJson($data)
-    {
-        $data = json_decode($data);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \Exception('Unable to parse string into JSON');
-        }
-
-        return $data;
+        return $products;
     }
 
     public function getUrlParams($frisbee_config)
