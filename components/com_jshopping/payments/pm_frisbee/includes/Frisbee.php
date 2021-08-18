@@ -188,15 +188,10 @@ class Frisbee
     {
         $content = file_get_contents('php://input');
 
-        if (isset($_SERVER['CONTENT_TYPE'])) {
-            switch ($_SERVER['CONTENT_TYPE']) {
-                case 'application/json':
-                    return json_decode($content, true);
-                case 'application/xml':
-                    return (array) simplexml_load_string($content, "SimpleXMLElement", LIBXML_NOCDATA);
-                default:
-                    return $_REQUEST;
-            }
+        if (strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false) {
+            return json_decode($content, true);
+        } elseif (strpos($_SERVER['CONTENT_TYPE'], 'application/xml') !== false) {
+            return (array) simplexml_load_string($content, "SimpleXMLElement", LIBXML_NOCDATA);
         }
 
         return $_REQUEST;
