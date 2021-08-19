@@ -12,6 +12,8 @@ define ('ADMIN_CFG_FRISBEE_SECRET_KEY', 'Secret key');
 define ('ADMIN_CFG_FRISBEE_SECRET_KEY_DESCRIPTION', 'Custom character set is used to sign messages are forwarded.');
 define ('ADMIN_CFG_FRISBEE_CURRENCY_DESCRIPTION', 'Merchant currency');
 define ('ADMIN_CFG_FRISBEE_CURRENCY', 'Merchant currency');
+define ('ADMIN_CFG_FRISBEE_ORDER_STATUS_SUCCESSFUL', 'Order Status for successful transactions');
+define ('ADMIN_CFG_FRISBEE_ORDER_STATUS_FAILED', 'Order Status for failed transactions');
 
 define('FRISBEE_UNKNOWN_ERROR', 'An error has occurred during payment. Please contact us to ensure your order has submitted.');
 define('FRISBEE_MERCHANT_DATA_ERROR', 'An error has occurred during payment. Merchant data is incorrect.');

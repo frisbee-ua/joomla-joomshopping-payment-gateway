@@ -209,7 +209,7 @@ defined('_JEXEC') or die();
             </tr>
             <tr>
                 <td class="key">
-                    <?php echo _JSHOP_TRANSACTION_END;?>:
+                    <?php echo ADMIN_CFG_FRISBEE_ORDER_STATUS_SUCCESSFUL;?>:
                 </td>
                 <td>
                     <?php print JHTML::_('select.genericlist', $orders->getAllOrderStatus(), 'pm_params[transaction_end_status]', 'class = "inputbox" size = "1"', 'status_id', 'name', $params['transaction_end_status'] );?>
@@ -217,7 +217,7 @@ defined('_JEXEC') or die();
             </tr>
             <tr>
                 <td class="key">
-                    <?php echo _JSHOP_TRANSACTION_FAILED;?>:
+                    <?php echo ADMIN_CFG_FRISBEE_ORDER_STATUS_FAILED;?>:
                 </td>
                 <td>
                     <?php echo JHTML::_('select.genericlist',$orders->getAllOrderStatus(), 'pm_params[transaction_failed_status]', 'class = "inputbox" size = "1"', 'status_id', 'name', $params['transaction_failed_status']);?>

@@ -73,7 +73,6 @@ class pm_frisbee extends PaymentRoot
                 break;
         }
         $order_id = $order->order_id;
-        $description = 'Order: '.$order_id;
 
         $base_url = JURI::root().'index.php?option=com_jshopping&controller=checkout&task=step7&js_paymentclass='.__CLASS__.'&order_id='.$order_id;
         $success_url = $base_url.'&act=finish';
@@ -122,7 +121,7 @@ class pm_frisbee extends PaymentRoot
             $frisbeeService->setMerchantId($pmconfig['frisbee_merchant_id']);
             $frisbeeService->setSecretKey($pmconfig['frisbee_secret_key']);
 
-            $response = $frisbeeService->handleCallbackData($data);
+            $result = $frisbeeService->handleCallbackData($data);
 
             if ($frisbeeService->isOrderDeclined()) {
                 $orderStatus = 4;
@@ -136,7 +135,7 @@ class pm_frisbee extends PaymentRoot
 
             $message = 'Frisbee ID: '.$data['order_id'].' Payment ID: '.$data['payment_id'] . ' Message: ' . $frisbeeService->getStatusMessage();
         } catch (\Exception $exception) {
-            $orderStatus = isset($pmconfig['transaction_failed_status']) ? $pmconfig['transaction_failed_status'] : 3;
+            $orderStatus = !empty($pmconfig['transaction_failed_status']) ? $pmconfig['transaction_failed_status'] : 3;
             return array($orderStatus, $exception->getMessage());
         }
 
@@ -212,9 +211,10 @@ class pm_frisbee extends PaymentRoot
     {
         $products = [];
 
+        $i = 1;
         foreach ($order->getAllItems() as $key => $item) {
             $products[] = [
-                'id' => $key+1,
+                'id' => $i++,
                 'name' => $item->product_name,
                 'price' => number_format(floatval($item->product_item_price), self::PRECISION),
                 'total_amount' => number_format($this->calculateItemTotalAmount($item), self::PRECISION),

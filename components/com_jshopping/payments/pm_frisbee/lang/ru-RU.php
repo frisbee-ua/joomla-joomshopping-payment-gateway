@@ -12,6 +12,8 @@ define ('ADMIN_CFG_FRISBEE_SECRET_KEY', 'Ключ платежа');
 define ('ADMIN_CFG_FRISBEE_SECRET_KEY_DESCRIPTION', 'Набор символов используется для подписи пересылаемых сообщений.');
 define ('ADMIN_CFG_FRISBEE_CURRENCY', 'Валюта мерчанта');
 define ('ADMIN_CFG_FRISBEE_CURRENCY_DESCRIPTION', 'Валюта мерчанта');
+define ('ADMIN_CFG_FRISBEE_ORDER_STATUS_SUCCESSFUL', 'Статус заказа для успешных транзакций');
+define ('ADMIN_CFG_FRISBEE_ORDER_STATUS_FAILED', 'Статус заказа для неудачных транзакций');
 
 define('FRISBEE_UNKNOWN_ERROR', 'Произошла ошибка во время оплаты.');
 define('FRISBEE_MERCHANT_DATA_ERROR', 'Произошла ошибка во время оплаты. Данные мерчанта неверны.');
