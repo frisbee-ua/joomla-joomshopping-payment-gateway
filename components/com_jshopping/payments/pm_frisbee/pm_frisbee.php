@@ -191,7 +191,7 @@ class pm_frisbee extends PaymentRoot
             'customer_name' => $order->f_name . ' ' . $order->l_name,
             'customer_city' => $order->city,
             'customer_zip' => $order->zip,
-            'account' => ($order->user_id > 0 ? $order->user_id : 'Guest'),
+            'account' => ($order->user_id > 0 ? $order->user_id : time()),
             'products' => $this->generateProductsParameter($order),
             'cms_name' => 'Joomla',
             'cms_version' => defined('JVERSION') ? JVERSION : '',
