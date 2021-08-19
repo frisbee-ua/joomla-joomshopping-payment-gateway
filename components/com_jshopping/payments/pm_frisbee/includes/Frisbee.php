@@ -251,32 +251,32 @@ class Frisbee
     {
         if ($this->isCallbackDataValid($data)) {
             $orderStatus = strtolower($data['order_status']);
-            if ($orderStatus == self::ORDER_DECLINED) {
-                $this->isOrderDeclined = true;
-                $this->setStatusMessage('Order was declined.');
-
-                return false;
-            }
-
             if ($orderStatus == self::ORDER_EXPIRED) {
                 $this->isOrderExpired = true;
-                $this->setStatusMessage('Order expired.');
+                $this->setStatusMessage('Order was expired.');
 
                 return false;
             }
 
             if ($orderStatus == self::ORDER_REVERSED) {
                 $this->isOrderFullyReversed = true;
-                $this->setStatusMessage('Order fully reversed.');
+                $this->setStatusMessage('Order was fully reversed.');
 
                 return true;
             }
 
             if (isset($data['reversal_amount']) && $data['reversal_amount'] > 0) {
                 $this->isOrderPartiallyReversed = true;
-                $this->setStatusMessage('Order partially reversed.');
+                $this->setStatusMessage('Order was partially reversed.');
 
                 return true;
+            }
+
+            if ($orderStatus == self::ORDER_DECLINED || empty($response['actual_amount'])) {
+                $this->isOrderDeclined = true;
+                $this->setStatusMessage('Order was declined.');
+
+                return false;
             }
 
             if (strtolower($data['order_status']) != self::ORDER_APPROVED) {
