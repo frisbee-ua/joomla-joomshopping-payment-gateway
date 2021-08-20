@@ -196,9 +196,9 @@ class pm_frisbee extends PaymentRoot
             'cms_name' => 'Joomla',
             'cms_version' => defined('JVERSION') ? JVERSION : '',
             'shop_domain' => $_SERVER['SERVER_NAME'] ?: $_SERVER['HTTP_HOST'],
-            'path' => $_SERVER['REQUEST_URI']
+            'path' => $_SERVER['REQUEST_URI'],
+            'uuid' => base64_encode($_SERVER['HTTP_USER_AGENT'])
         );
-        $reservationData['uuid'] = sprintf('%s_%s', $reservationData['shop_domain'], $reservationData['cms_name']);
 
         return base64_encode(json_encode($reservationData));
     }
