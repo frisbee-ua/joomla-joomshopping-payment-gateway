@@ -59,9 +59,6 @@ class pm_frisbee extends PaymentRoot
         $this->loadLanguageFile();
 
         switch ($lang) {
-            case 'en_EN':
-                $lang = 'en';
-                break;
             case 'ru_RU':
                 $lang = 'ru';
                 break;
@@ -121,14 +118,23 @@ class pm_frisbee extends PaymentRoot
             $frisbeeService->setMerchantId($pmconfig['frisbee_merchant_id']);
             $frisbeeService->setSecretKey($pmconfig['frisbee_secret_key']);
 
-            $result = $frisbeeService->handleCallbackData($data);
+            $frisbeeService->handleCallbackData($data);
 
             if ($frisbeeService->isOrderDeclined()) {
-                $orderStatus = 4;
+                $declinedOrderStatus = $this->getStatusDeclined();
+                if (isset($declinedOrderStatus->status_id)) {
+                    $orderStatus = $declinedOrderStatus->status_id;
+                } else {
+                    $orderStatus = 4;
+                }
             } elseif ($frisbeeService->isOrderExpired()) {
-                die();
+                if ($order->order_status == 1) {
+                    $orderStatus = 3;
+                } else {
+                    die();
+                }
             } elseif ($frisbeeService->isOrderApproved()) {
-                $orderStatus = $pmconfig['transaction_end_status'];
+                $orderStatus = !empty($pmconfig['transaction_end_status']) ? $pmconfig['transaction_end_status'] : 6;
             } elseif ($frisbeeService->isOrderFullyReversed() || $frisbeeService->isOrderPartiallyReversed()) {
                 $orderStatus = 7;
             }
@@ -136,10 +142,9 @@ class pm_frisbee extends PaymentRoot
             $message = 'Frisbee ID: '.$data['order_id'].' Payment ID: '.$data['payment_id'] . ' Message: ' . $frisbeeService->getStatusMessage();
         } catch (\Exception $exception) {
             $orderStatus = !empty($pmconfig['transaction_failed_status']) ? $pmconfig['transaction_failed_status'] : 3;
+            echo $exception->getMessage();
             return array($orderStatus, $exception->getMessage());
         }
-
-        JFactory::getApplication()->enqueueMessage($message);
 
         return array($orderStatus, $message);
     }
@@ -225,6 +230,15 @@ class pm_frisbee extends PaymentRoot
         return $products;
     }
 
+    protected function getStatusDeclined()
+    {
+        $db = JFactory::getDBO();
+        $query = 'select * from `#__jshopping_order_status` where status_code = \'D\'';
+        $db->setQuery($query);
+
+        return $db->loadObject();
+    }
+
     public function getUrlParams($frisbee_config)
     {
         $params = [];
@@ -235,6 +249,17 @@ class pm_frisbee extends PaymentRoot
         $params['checkReturnParams'] = 1;
 
         return $params;
+    }
+
+    /**
+     * Get status order
+     * @param int $rescode
+     * @param array $pmconfigs
+     * @return int
+     */
+    public function getStatusFromResCode($rescode, $pmconfigs)
+    {
+        return $rescode;
     }
 
     public function fixOrderTotal($order)
